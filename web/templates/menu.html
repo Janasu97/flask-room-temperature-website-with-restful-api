@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rooms Dashboard</title>
+    <link rel="stylesheet" href="/static/dialog.css">
+    <style>
+        .room-container {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .room {
+            width: 200px;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center; /* Center align the content */
+            cursor: pointer; /* Change cursor to pointer on hover */
+        }
+        .average-temperature {
+            font-size: 24px; /* Set the font size to make it bigger */
+            margin-top: 20px; /* Add margin to separate it from other content */
+        }
+        .add-button {
+            display: block;
+            margin: 0 auto; /* Center the button horizontally */
+            font-size: 5em; /* Increase font size */
+            padding: 10px 20px; /* Increase padding */
+            border-radius: 15px;
+            color: #fff;
+            cursor: pointer;
+            border: none;
+            text-align: center;
+        }
+        #create-room-form {
+            display: none;
+            max-width: 400px; /* Set maximum width */
+            margin: 0 auto; /* Center the form horizontally */
+            padding: 20px; /* Add padding */
+            border: 1px solid #ccc; /* Add border */
+            border-radius: 10px; /* Add border radius */
+            background-color: #f9f9f9; /* Add background color */
+        }
+        #form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #close-form-btn {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: #888;
+        }
+
+        #close-form-btn:hover {
+            color: #000;
+        }
+
+        #create-room-header {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5 px;
+        }
+
+        #delete-btn {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            color: #888;
+            position: absolute;
+            top: 2px;
+            right: 2px;
+        }
+    </style>
+</head>
+<body>
+    <h1>RoomTemp application</h1>
+
+    <h2>Select your room</h2>
+
+    <div class="room-container" data-room-id="">
+        <!-- Rooms will be dynamically inserted here -->
+    </div>
+
+        <!-- Add button -->
+    <div class="add-button">
+        <button id="add-room-btn">+ Add Room</button>
+    </div>
+
+    <!-- Add form for creating a new room (hidden by default) -->
+    <div id="create-room-form" style="display: none;">
+        <div id="form-header">
+            <h2>Create New Room</h2>
+            <button id="close-form-btn">x</button>
+        </div>
+        <form action="/create_room" method="post" id="room-form">
+            <label for="room-name">Room Name:</label>
+            <input type="text" id="room-name" name="room-name"><br><br>
+            <button type="submit">Create</button>
+        </form>
+    </div>
+
+    <script src="/static/dialog.js"></script>
+
+    <!-- Script to store the global functions -->
+    <script>
+        // Function to handle room click event
+        function handleRoomClick(roomId, roomName) {
+        // Redirect to the room page with the roomId as a parameter
+        sessionStorage.setItem('room_id', roomId);
+        sessionStorage.setItem('room_name', roomName);
+        window.location.href = `/room/${roomId}`;
+        }
+
+        // Function to handle delete button click event
+        async function handleDeleteButtonClick(event) {
+            event.stopPropagation(); // Prevent container click event from firing
+
+            // Show confirmation dialog
+            showDialog('Are you sure you want to delete the room with all its temperatures?', async function(result) {
+                if (result) {
+                    const roomContainer = event.target.closest('.room'); // Find the parent room container
+                    const roomId = roomContainer.dataset.roomId; // Get the room ID
+
+                    // Create a JSON object with the room id
+                    const jsonData = {
+                        room_id: roomId
+                    };
+
+                    // Send the JSON data to the backend using a DELETE request
+                    const response = await fetch('/delete_room', {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json' // Set Content-Type header to 'application/json'
+                        },
+                        body: JSON.stringify(jsonData)
+                    });
+
+                    // Handle the response from the backend
+                    if (response.ok) {
+                        if (roomContainer) {
+                            roomContainer.remove();
+                        } else {
+                            console.error("Room container not found");
+                        }
+                    } else {
+                        // If there's an error, handle it
+                        const errorData = await response.json();
+                        console.error('Error:', errorData.message);
+                        // Display a user-friendly error message to the user
+                        alert('An error occurred. Please try again later.');
+                    }
+                } else {
+                    // User clicked Cancel
+                    console.log('User clicked Cancel');
+                }
+            });
+        }
+    </script>
+
+    <!--Script for room/average temperature data retrieval -->
+    <script>
+        // Make a GET request to fetch rooms data from the Flask backend
+        fetch('/get_rooms')
+            .then(response => response.json())
+            .then(data => {
+                const rooms = data.rooms;
+
+                // Select the room container element
+                const roomContainer = document.querySelector('.room-container');
+
+                // Check if there are any rooms available
+                if (rooms.length > 0) {
+                    // Loop through each room and create HTML elements to display room information
+                    rooms.forEach(room => {
+                        const roomDiv = document.createElement('div');
+                        roomDiv.classList.add('room');
+                        roomDiv.dataset.roomId = room.id; // Set data-room-id attribute
+                        roomDiv.innerHTML = `
+                            <div id="create-room-header">
+                                <button id="delete-btn">x</>
+                            </div>
+                            <div id="create-room-body">
+                                <h3>Room: ${room.id}</h3>
+                                <p>${room.name}</p>
+                                <p>${room.avg_temperature ? 'Daily Average Temperature: ' + room.avg_temperature : 'No temperature records today'}</p>
+                            </div>
+                        `;
+                        // Add click event listener to each room
+                        roomDiv.querySelector('#create-room-body').addEventListener('click', () => handleRoomClick(room.id, room.name));
+
+                        // Add event listener to the room container to handle delete button clicks
+                        roomDiv.querySelector('#create-room-header').addEventListener('click', handleDeleteButtonClick);
+
+                        roomContainer.appendChild(roomDiv);
+                    });
+                } else {
+                    // If no rooms available, display a message
+                    const message = document.createElement('p');
+                    message.textContent = 'No available rooms';
+                    document.body.appendChild(message);
+                }
+            })
+            .catch(error => {
+                // Handle any errors that occur during the fetch request
+                console.error('Error fetching rooms:', error);
+            });
+    </script>
+
+    <!-- Script for room creation -->
+    <script>
+        // Add event listener for the "Add" button
+        document.getElementById("add-room-btn").addEventListener("click", async function() {
+            // Show the create room form
+            document.getElementById("create-room-form").style.display = "block";
+        });
+
+        // Add event listener for the room creation form
+        document.getElementById("room-form").addEventListener("submit", async function(event) {
+            // Prevent the default form submission
+            event.preventDefault();
+
+            // Get the room name from the form
+            const roomName = document.getElementById("room-name").value;
+
+            // Create a JSON object with the room name
+            const jsonData = {
+                name: roomName
+            };
+
+            // Send the JSON data to the backend using a POST request
+            const response = await fetch('/create_room', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' // Set Content-Type header to 'application/json'
+                },
+                body: JSON.stringify(jsonData)
+            });
+
+            // Handle the response from the backend
+            if (response.ok) {
+                // If the request is successful, reset the form and hide it
+                event.target.reset();
+                document.getElementById("create-room-form").style.display = "none";
+
+                //Get the room data from backend response
+                const responseData = await response.json();
+                const roomID = responseData.room_id;
+                const roomName = responseData.name;
+
+                // Create a new room rectangle dynamically
+                const roomContainer = document.querySelector('.room-container');
+                const roomDiv = document.createElement('div');
+                roomDiv.classList.add('room');
+                roomDiv.dataset.roomId = roomID; // Set data-room-id attribute
+                roomDiv.innerHTML = `
+                    <div id="create-room-header">
+                        <button id="delete-btn">x</>
+                    </div>
+                    <div id="create-room-body">
+                        <h3>Room: ${roomID}</h3>
+                        <p>${roomName}</p>
+                        <p>No temperature records today</p>
+                    </div>
+                `;
+                // Add click event listener to the room
+                roomDiv.addEventListener('click', () => handleRoomClick(roomID, roomName));
+
+                // Add event listener to the room container to handle delete button clicks
+                roomDiv.querySelector('#create-room-header').addEventListener('click', handleDeleteButtonClick);
+
+                roomContainer.appendChild(roomDiv);
+            } else {
+                // If there's an error, handle it
+                const errorData = await response.json();
+                // Display a user-friendly error message to the user
+                alert('An error occurred. Please try again later.');
+            }
+        });
+
+        // Add event listener for the close button
+        document.getElementById("close-form-btn").addEventListener("click", function() {
+            // Hide the create room form
+            document.getElementById("create-room-form").style.display = "none";
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Details</title>
+    <link rel="stylesheet" href="/static/dialog.css">
+    <style>
+        /* Table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background-color: #f2f2f2;
+        }
+
+        #modify-temperature-form {
+            display: none;
+            max-width: 400px; /* Set maximum width */
+            margin: 0 auto; /* Center the form horizontally */
+            padding: 20px; /* Add padding */
+            border: 1px solid #ccc; /* Add border */
+            border-radius: 10px; /* Add border radius */
+            background-color: #f9f9f9; /* Add background color */
+        }
+        #form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+
+        #close-form-btn {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: #888;
+        }
+
+        #close-form-btn:hover {
+            color: #000;
+        }
+
+        .add-button {
+            display: block;
+            margin: 0 auto; /* Center the button horizontally */
+            font-size: 5em; /* Increase font size */
+            padding: 10px 20px; /* Increase padding */
+            border-radius: 15px;
+            color: #fff;
+            cursor: pointer;
+            border: none;
+            text-align: center;
+        }
+
+        /* Style to adjust layout */
+        #table-range {
+            display: flex;
+            align-items: center;
+        }
+
+        #table-range label {
+            margin-right: 10px; /* Adjust the margin as needed */
+        }
+
+        #end-date-wrapper {
+            margin-left: 20px; /* Adjust the margin to indent the end date */
+        }
+
+        #draw-table-btn {
+            margin-left: 20px; /* Push the button to the right */
+        }
+
+        /* Style for delete button */
+        .delete-btn {
+            background-color: #A9A9A9; /* Grey background color */
+            border: none; /* No border */
+            padding: 5px 10px; /* Padding */
+            cursor: pointer; /* Cursor style */
+            border-radius: 5px; /* Round shape */
+            display: flex; /* Use flexbox for centering */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+            width: 30px; /* Adjust width */
+            height: 30px; /* Adjust height */
+            margin: 0 auto; /* Center within cell */
+        }
+
+        .delete-btn:hover {
+            color: #FF0000;
+        }
+
+        /* Style for back button */
+        #home-btn {
+            background-color: #808080; /* Grey background color */
+            color: #fff; /* White text color */
+            border: none; /* No border */
+            padding: 5px 10px; /* Padding */
+            cursor: pointer; /* Cursor style */
+            border-radius: 5px; /* Round shape */
+        }
+
+        /* Hover effect for back button */
+        #home-btn:hover {
+            background-color: #555; /* Darker grey background color */
+        }
+
+    </style>
+</head>
+<body>
+    <button id="home-btn">&larr; Home</button>
+    <h1 id="room-name"></h1>
+    <h3 id="range-text">Show records for this time frame</h3>
+
+    <div id="table-range">
+        <label for="start-date">Start date:</label>
+        <input type="date" id="start-date" name="start-date">
+
+        <div id="end-date-wrapper">
+            <label for="end-date">End date:</label>
+            <input type="date" id="end-date" name="end-date">
+        </div>
+
+        <button id="draw-table-btn">Draw table</button>
+    </div>
+
+    <div id="table-container"></div>
+
+            <!-- Add button -->
+    <div class="add-button">
+        <button id="add-temperature-btn">+ Add Temperature</button>
+    </div>
+
+        <!-- Add form for creating a new room (hidden by default) -->
+    <div id="modify-temperature-form" style="display: none;">
+        <div id="form-header">
+            <h2 id="temperature-form-header">Temperature Form</h2>
+            <button id="close-form-btn">x</button>
+        </div>
+        <form action="/modify_temperature" method="post" id="temperature-form">
+            <label for="form-date">Date:</label>
+            <input type="datetime-local" id="form-date" name="form-date"><br><br>
+            <label for="form-temp">Temperature:</label>
+            <input type="number" id="form-temp" name="form-temp"><br><br>
+            <button type="submit" id="form-submit">Create</button>
+        </form>
+    </div>
+
+    <script src="/static/dialog.js"></script>
+
+    <!-- Script to store global variables and functions-->
+    <script>
+        let gRoomID;
+        let gTemperatureID;
+        let gRow;
+        let gTable = null;
+
+        function showMessage(message) {
+            // Create a div element for the message
+            const messageDiv = document.createElement("div");
+            messageDiv.textContent = message;
+            messageDiv.classList.add("message");
+
+            // Apply styles
+            messageDiv.style.position = "fixed";
+            messageDiv.style.top = "50%";
+            messageDiv.style.left = "50%";
+            messageDiv.style.transform = "translate(-50%, -50%)";
+            messageDiv.style.backgroundColor = "rgba(0, 0, 0, 0.7)"; // Semi-transparent black background
+            messageDiv.style.color = "white";
+            messageDiv.style.padding = "10px 20px"; // Add padding to the top and bottom, and more padding to the left and right
+            messageDiv.style.borderRadius = "5px"; // Rounded corners
+
+            // Append the message element to the body
+            document.body.appendChild(messageDiv);
+
+            // Center the message element
+            messageDiv.style.position = "fixed";
+            messageDiv.style.top = "50%";
+            messageDiv.style.left = "50%";
+            messageDiv.style.transform = "translate(-50%, -50%)";
+
+            // Set a timeout to remove the message after 2 seconds
+            setTimeout(function() {
+                // Remove the message element
+                messageDiv.parentNode.removeChild(messageDiv);
+            }, 2000); // 2000 milliseconds = 2 seconds
+        }
+
+        function createTable() {
+            const table = document.createElement('table');
+            table.classList.add('table');
+
+            gTable = table;
+
+            // Create table header
+            const headerRow = table.insertRow();
+            const idHeaderCell = headerRow.insertCell();
+            idHeaderCell.textContent = 'ID';
+            const dateHeaderCell = headerRow.insertCell();
+            dateHeaderCell.textContent = 'Date';
+            const tempHeaderCell = headerRow.insertCell();
+            tempHeaderCell.textContent = 'Temperature';
+            const deleteHeaderCell = headerRow.insertCell();
+        }
+
+        function addTableRow(table, record) {
+            const row = table.insertRow();
+            const idCell = row.insertCell();
+            idCell.textContent = record.id;
+            const dateCell = row.insertCell();
+            dateCell.textContent = new Date(record.date).toLocaleString();
+            const tempCell = row.insertCell();
+            tempCell.textContent = record.temperature;
+            const deleteCell = row.insertCell(); // Add a new cell for the delete button
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'x';
+            deleteButton.classList.add('delete-btn'); // Add a class for styling
+            deleteButton.addEventListener('click', () => deleteTemperature(record.id, row));
+            deleteCell.appendChild(deleteButton);
+
+            // Add click event listener to each row in table
+            row.addEventListener('click', async function() {
+                // Extract data from the clicked row
+                const id = record.id;
+                const date = record.date;
+                const formattedDate = new Date(date).toISOString().slice(0, 14); // Format to "YYYY-MM-DDTHH:MM"
+                const temperature = record.temperature;
+                gTemperatureID = id;
+                gRow = row;
+
+                // Fill modify form with the extracted data
+                document.getElementById('temperature-form-header').textContent = 'Update Temperature ' + id;
+                document.getElementById('form-date').value = formattedDate;
+                document.getElementById('form-temp').value = temperature;
+                document.getElementById('form-submit').textContent = 'Update'
+
+                // Hide the "add-temperature-btn" room form
+                document.getElementById("add-temperature-btn").style.display = "none";
+
+                // Show the create room form
+                document.getElementById("modify-temperature-form").style.display = "block";
+            });
+        }
+
+    </script>
+
+    <!-- Script to set the name of the page and retrieve the room_name and room_id -->
+    <!-- Also to set the default values in the start-date and end-date elements -->
+    <script>
+        // Retrieve room name from sessionStorage
+        const roomName = sessionStorage.getItem('room_name');
+        const roomID = sessionStorage.getItem('room_id');
+        gRoomID = roomID;
+
+        // Update document title with room name
+        document.title = `${roomName} Room Details`;
+
+        // Display room name on the page
+        const roomNameElement = document.getElementById('room-name');
+        roomNameElement.textContent = roomName + ' - Details';
+
+        // Get the current date
+        const currentDate = new Date();
+        // Get the first day of the current month
+        const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        // Format first day of month as "YYYY-MM-DD"
+        const formattedFirstDayOfMonth = firstDayOfMonth.toISOString().slice(0, 10);
+        // Set the value of start-date input element to the first day of the current month
+        document.getElementById('start-date').value = formattedFirstDayOfMonth;
+
+        // Format current date as "YYYY-MM-DD"
+        const formattedCurrentDate = currentDate.toISOString().slice(0, 10);
+        // Set the value of end-date input element to the current date
+        document.getElementById('end-date').value = formattedCurrentDate;
+    </script>
+
+    <!-- Script for adding listeners -->
+    <script>
+        // Add event listener for the "Add Temperature" button
+        document.getElementById("add-temperature-btn").addEventListener("click", async function() {
+            document.getElementById('temperature-form-header').textContent = 'Create New Temperature';
+            const currentDate = new Date();
+            const formattedDate = new Date(currentDate).toISOString().slice(0, 16); // Format to "YYYY-MM-DDTHH:MM"
+            document.getElementById('form-date').value = formattedDate;
+            document.getElementById('form-submit').textContent = 'Create';
+
+            gTemperatureID = null;
+            gRow = null;
+
+            // Hide the "add-temperature-btn" room form
+            document.getElementById("add-temperature-btn").style.display = "none";
+
+            // Show the create room form
+            document.getElementById("modify-temperature-form").style.display = "block";
+        });
+
+        // Add event listener for the close button
+        document.getElementById("close-form-btn").addEventListener("click", function() {
+            // Show the "add-temperature-btn" room form
+            const addButton = document.getElementById("add-temperature-btn");
+            addButton.style.display = "block"
+            addButton.style.margin = "0 auto"
+
+            // Hide the create room form
+            document.getElementById("modify-temperature-form").style.display = "none";
+        });
+
+        // Add event listener for the home-btn
+        document.getElementById("home-btn").addEventListener("click", function() {
+            window.location.href = `/`;
+        });
+    </script>
+
+    <!-- Script for deleteTemperature -->
+    <script>
+        async function deleteTemperature(id, row) {
+            event.stopPropagation(); // Stop event propagation
+            showDialog('Are you sure you want to delete the room with all its temperatures?', async function(result) {
+                if (result) {
+
+                    // Create a JSON object with the room id
+                    const jsonData = {
+                        id: id
+                    };
+
+                    // Send the JSON data to the backend using a DELETE request
+                    const response = await fetch('/delete_temperature', {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json' // Set Content-Type header to 'application/json'
+                        },
+                        body: JSON.stringify(jsonData)
+                    });
+
+                    // Handle the response from the backend
+                    if (response.ok) {
+                        row.remove(); // Remove the row from the table
+                        const addButton = document.getElementById("add-temperature-btn");
+                        addButton.style.display = "block"
+                        addButton.style.margin = "0 auto"
+                        document.getElementById("modify-temperature-form").style.display = "none";
+                    } else {
+                        // If there's an error, handle it
+                        const errorData = await response.json();
+                        console.error('Error:', errorData.message);
+                        // Display a user-friendly error message to the user
+                        alert('An error occurred. Please try again later.');
+                    }
+                } else {
+                    // User clicked Cancel
+                    console.log('User clicked Cancel');
+                }
+            });
+        }
+    </script>
+
+    <!-- Script for createRecord() function -->
+    <script>
+        async function createTemperature(jsonData) {
+            // Send the JSON data to the backend using a POST request
+            const response = await fetch('/submit_temperature', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' // Set Content-Type header to 'application/json'
+                },
+                body: JSON.stringify(jsonData)
+            });
+
+            // Handle the response from the backend
+            if (response.ok) {
+                // If the request is successful, reset the form and hide it
+                const addButton = document.getElementById("add-temperature-btn");
+                addButton.style.display = "block"
+                addButton.style.margin = "0 auto"
+                document.getElementById("modify-temperature-form").style.display = "none";
+
+                const responseData = await response.json();
+                jsonData.id = responseData.id
+                if (gTable === null) {
+                    const tableContainer = document.getElementById('table-container');
+                    tableContainer.innerHTML = ''; // Clear previous table if exists
+                    createTable();
+                    tableContainer.appendChild(gTable);
+                }
+                addTableRow(gTable ,jsonData);
+                showMessage("New temperature created successfully.");
+            } else {
+                // If there's an error, handle it
+                const errorData = await response.json();
+                // Display a user-friendly error message to the user
+                alert('An error occurred. Please try again later.');
+            }
+        }
+    </script>
+
+    <!-- Script for updateRecord() function -->
+    <script>
+        async function updateTemperature(jsonData) {
+            // Send the JSON data to the backend using a POST request
+            const response = await fetch('/update_temperature', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json' // Set Content-Type header to 'application/json'
+                },
+                body: JSON.stringify(jsonData)
+            });
+
+            // Handle the response from the backend
+            if (response.ok) {
+                // If the request is successful, reset the form and hide it
+                const addButton = document.getElementById("add-temperature-btn");
+                addButton.style.display = "block"
+                addButton.style.margin = "0 auto"
+                document.getElementById("modify-temperature-form").style.display = "none";
+
+                // Modify the row
+                const cells = gRow.cells; // Get all cells in the row
+                cells[1].textContent = new Date(jsonData.date).toLocaleString(); // Update the date cell (assuming it's the second cell)
+                cells[2].textContent = jsonData.temperature; // Update the temperature cell (assuming it's the third cell)
+
+                showMessage("Record updated successfully.");
+            } else {
+                // If there's an error, handle it
+                const errorData = await response.json();
+                // Display a user-friendly error message to the user
+                alert('An error occurred. Please try again later.');
+            }
+        }
+    </script>
+
+
+    <!-- Script for the Create/Update form submit listener -->
+    <script>
+        // Add event listener for the temperature modification form
+        document.getElementById("temperature-form").addEventListener("submit", async function(event) {
+            // Prevent the default form submission
+            event.preventDefault();
+
+            // Get the record data from form
+            const temperature = document.getElementById("form-temp").value;
+            const date = document.getElementById("form-date").value;
+
+            // Create a JSON object with the room name
+            const jsonData = {
+                date: date,
+                id: gTemperatureID,
+                room_id: gRoomID,
+                temperature: temperature
+            };
+
+            const buttonText = document.getElementById("form-submit").textContent;
+            if (buttonText === "Create") {
+                createTemperature(jsonData);
+            } else if (buttonText == "Update") {
+                updateTemperature(jsonData);
+            } else {
+                // Handle unexpected button text
+                console.error("Unexpected button text:", buttonText);
+            }
+        });
+    </script>
+
+    <!-- Script for table drawing -->
+    <script>
+        // Function to draw the table
+        function drawTable(temperatures) {
+            const tableContainer = document.getElementById('table-container');
+            tableContainer.innerHTML = ''; // Clear previous table if exists
+
+            createTable();
+
+            // Create table rows for each temperature
+            temperatures.forEach((record) => {
+                addTableRow(gTable, record);
+            });
+
+            tableContainer.appendChild(gTable);
+        }
+
+        // Add event listener to the "draw-table-btn" button
+        document.getElementById("draw-table-btn").addEventListener("click", async function() {
+            // Get the start and end dates from the input fields
+            const startDate = document.getElementById("start-date").value;
+            const endDate = document.getElementById("end-date").value;
+            const roomID = sessionStorage.getItem('room_id');
+
+            const url = `/get_room_temperatures?room_id=${roomID}&start_date=${startDate}&end_date=${endDate}`;
+
+            try {
+                // Send the JSON data to the backend using a GET request
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json' // Set Content-Type header to 'application/json'
+                    }
+                });
+
+                // Handle the response from the backend
+                if (response.ok) {
+                    // Call the drawTable function with the selected dates
+                    const responseData = await response.json();
+                    drawTable(responseData.temperatures);
+                } else {
+                    // If there's an error, handle it
+                    alert('An error occurred. Please try again later.');
+                }
+            } catch (error) {
+                // Catch any network or parsing errors
+                alert('An error occurred. Please try again later.');
+                console.error('Error:', error);
+            }
+        });
+    </script>
+
+</body>
+</html>

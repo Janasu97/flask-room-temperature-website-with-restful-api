@@ -1,0 +1,31 @@
+.dialog-box {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border: 1px solid #ccc;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    /* Center the dialog box horizontally and vertically */
+    /* Adjust width and height based on content */
+    max-width: 200px; /* Maximum width to prevent stretching */
+}
+
+.dialog-box p {
+    margin-bottom: 10px;
+}
+
+.dialog-box .button-container {
+    display: flex;
+    justify-content: space-between;
+}
+
+.dialog-box .button-container .ok-button {
+    margin-right: 10px; /* Add right margin to OK button */
+}
+
+
+.dialog-box .button-container button {
+    padding: 5px 15px; /* Adjust padding as needed */
+}
