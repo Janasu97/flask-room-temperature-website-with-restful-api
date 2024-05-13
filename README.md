@@ -47,7 +47,7 @@ seamlessly add, modify, or delete temperature records as needed.
 ---
 1. Clone the repository:
     ```
-    git clone https://github.com/Janasu97/vet_db_postgreSQL.git
+    https://github.com/Janasu97/flask-room-temperature-website-with-restful-api.git
     ```
 2. Navigate to the project directory.
 
